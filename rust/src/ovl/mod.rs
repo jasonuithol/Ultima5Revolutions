@@ -1,0 +1,24 @@
+//! Overlay modules (one per .OVL), translated from decomp_named/<NAME>.c.
+pub mod town;
+pub mod mainout;
+pub mod dungeon;
+pub mod intro;
+pub mod flames;
+pub mod npc;
+pub mod combat;
+pub mod blckthrn;
+pub mod lookobj;
+pub mod dnglook;
+pub mod outsubs;
+pub mod shoppes;
+pub mod endgame;
+pub mod sjog;
+pub mod cmds;
+pub mod cast;
+pub mod talk;
+pub mod cast2;
+pub mod zstats;
+pub mod comsubs;
+pub mod shoppes2;
+pub mod shoppes3;
+pub mod font;

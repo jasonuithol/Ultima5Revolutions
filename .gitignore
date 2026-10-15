@@ -1,0 +1,20 @@
+# Build output
+rust/target/
+
+# Derived from the original (copyrighted) binaries: not published. Regenerate with the
+# Ghidra pipeline (ghidra/run_ghidra.sh, run_drv.sh, tools/merge_exports.py) from your own copy.
+ghidra/proj/
+ghidra/U5.rep/
+ghidra/U5.gpr
+ghidra/export/
+ghidra/logs/
+ghidra/vectors_*.txt
+decomp/
+decomp_named/
+
+# Third-party reference text (Ultima Codex wiki) and recordings/screenshots of the game
+reference/
+tools/dosbox/capture/
+*.ppm
+*.png
+*.wav
