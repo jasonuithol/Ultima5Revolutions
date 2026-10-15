@@ -55,8 +55,22 @@ fn smoke_test(gm: &mut game::Game) {
     gm.pf.pump();
 }
 
+/// Write any panic (message + backtrace) to u5_crash.log in the game directory, so crashes can be
+/// reported without a terminal.
+fn install_crash_log(dir: &std::path::Path) {
+    let path = dir.join("u5_crash.log");
+    std::panic::set_hook(Box::new(move |info| {
+        let bt = std::backtrace::Backtrace::force_capture();
+        let msg = format!("{}\n\n{}\n", info, bt);
+        eprintln!("{}", info);
+        eprintln!("(details written to {})", path.display());
+        let _ = std::fs::write(&path, msg);
+    }));
+}
+
 fn main() {
     let dir = game_dir();
+    install_crash_log(&dir);
     let headless = std::env::var("U5_HEADLESS").is_ok();
     if !dir.join("DATA.OVL").exists() && !dir.join("data.ovl").exists() {
         eprintln!("Ultima V data files not found in {}.\nPut ultima5 next to the original game files (ULTIMA.EXE, DATA.OVL, ...) or set U5_DIR to that directory.", dir.display());

@@ -669,6 +669,26 @@ pub fn trap_effect(gm: &mut Game, member: u16) {
 
 /// orig 1000:3072 (261 bytes). Ghidra parameter order. Screen-shake effect for tremor/earthquake (spells, Blackthorn, towns). copy_page(0,1) (back up the screen to page 1), set_draw_page(1). 8 rounds of: for y = 8,11,..,179: scroll_rect_up (71ca: rect x 8..183, y..y+4, by 2 pixel rows via driver 13) on page 1, start_tone(rand_range(19,150)), copy_rect_b
 pub fn earthquake_shake(gm: &mut Game) {
+    // Each strip scroll/copy was a ~0.35 ms driver call on the reference machine; the random
+    // 19..150 Hz tone re-rolled per strip is what makes the rumble. Pace the strips on the wall
+    // clock, present frames on the way and feed the rumble to the speaker in sync.
+    const STRIP_US: f64 = 1400.0; // tuned against the original by ear (user feedback)
+    let start = std::time::Instant::now();
+    let mut ops: u64 = 0;
+    let mut sy = crate::platform::sound::Synth::new();
+    let sound_on = gm.g16(g::SOUND_ENABLED) != 0;
+    fn tick(gm: &mut Game, sy: &mut crate::platform::sound::Synth, ops: &mut u64, start: std::time::Instant, f: i16, sound_on: bool) {
+        sy.tone(f.max(19) as f64, STRIP_US);
+        *ops += 1;
+        if *ops % 48 == 0 {
+            if sound_on { gm.pf.speaker.play_samples(&sy.samples); }
+            sy.samples.clear();
+            let due = start + std::time::Duration::from_micros((*ops as f64 * STRIP_US) as u64);
+            let now = std::time::Instant::now();
+            if due > now { std::thread::sleep(due - now); }
+            gm.pf.pump();
+        }
+    }
     gfx::copy_page(gm, 1, 0);
     gfx::set_draw_page(gm, 1);
     let mut rounds: i16 = 8;
@@ -677,7 +697,7 @@ pub fn earthquake_shake(gm: &mut Game) {
         loop {
             scroll_rect_up(gm, 2, y + 4, 0xb7, y, 8);
             let f = util::rand_range(gm, 0x96, 0x13);
-            util::start_tone(gm, f as u16);
+            tick(gm, &mut sy, &mut ops, start, f, sound_on);
             y += 3;
             if !(y < 0xb4) { break; }
         }
@@ -685,7 +705,7 @@ pub fn earthquake_shake(gm: &mut Game) {
         loop {
             gfx::copy_rect_between_pages(gm, y + 4, 0xb7, y, 8, 0, 1);
             let f = util::rand_range(gm, 0x96, 0x13);
-            util::start_tone(gm, f as u16);
+            tick(gm, &mut sy, &mut ops, start, f, sound_on);
             y += 3;
             if !(y < 0xb4) { break; }
         }
@@ -693,7 +713,7 @@ pub fn earthquake_shake(gm: &mut Game) {
         loop {
             scroll_rect_down(gm, 2, y + 4, 0xb7, y, 8);
             let f = util::rand_range(gm, 0x96, 0x13);
-            util::start_tone(gm, f as u16);
+            tick(gm, &mut sy, &mut ops, start, f, sound_on);
             y -= 3;
             if !(7 < y) { break; }
         }
@@ -701,14 +721,14 @@ pub fn earthquake_shake(gm: &mut Game) {
         loop {
             gfx::copy_rect_between_pages(gm, y + 4, 0xb7, y, 8, 0, 1);
             let f = util::rand_range(gm, 0x96, 0x13);
-            util::start_tone(gm, f as u16);
+            tick(gm, &mut sy, &mut ops, start, f, sound_on);
             y -= 3;
             if !(7 < y) { break; }
         }
-        gm.pf.maybe_present();
         rounds -= 1;
         if rounds == 0 { break; }
     }
+    if sound_on && !sy.samples.is_empty() { gm.pf.speaker.play_samples(&sy.samples); }
     gfx::set_draw_page(gm, 0);
     util::stop_tone(gm);
 }
