@@ -11,8 +11,17 @@ mod ovl;
 
 use std::path::PathBuf;
 
+/// Game directory: U5_DIR, else the executable's directory or the current directory if either
+/// contains ULTIMA.EXE, else the developer's default install location.
 fn game_dir() -> PathBuf {
-    std::env::var("U5_DIR").map(PathBuf::from).unwrap_or_else(|_| PathBuf::from("/home/jason/Projects/Ultima 5"))
+    if let Ok(d) = std::env::var("U5_DIR") { return PathBuf::from(d); }
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    if let Ok(exe) = std::env::current_exe() { if let Some(p) = exe.parent() { candidates.push(p.to_path_buf()); } }
+    if let Ok(cwd) = std::env::current_dir() { candidates.push(cwd); }
+    for c in &candidates {
+        if c.join("ULTIMA.EXE").exists() || c.join("ultima.exe").exists() { return c.clone(); }
+    }
+    PathBuf::from("/home/jason/Projects/Ultima 5")
 }
 
 /// Developer smoke test of the text/graphics foundation: fonts, windows, print_string, tiles.
@@ -49,6 +58,10 @@ fn smoke_test(gm: &mut game::Game) {
 fn main() {
     let dir = game_dir();
     let headless = std::env::var("U5_HEADLESS").is_ok();
+    if !dir.join("DATA.OVL").exists() && !dir.join("data.ovl").exists() {
+        eprintln!("Ultima V data files not found in {}.\nPut ultima5 next to the original game files (ULTIMA.EXE, DATA.OVL, ...) or set U5_DIR to that directory.", dir.display());
+        std::process::exit(2);
+    }
     let mut gm = game::Game::new(dir, headless);
     if std::env::var("U5_TEST").is_ok() {
         smoke_test(&mut gm);
